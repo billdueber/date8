@@ -15,7 +15,7 @@ the `Date` class from the standard library.
 
 require 'date8'
 
-update_file_template = Date8::FileTemplate("dat_upd_<%Y%m%d>.csv")
+update_file_template = Date8::FileTemplate("dat_upd_<DATE>.csv")
 
 # Give it something that we can parse to a Date8
 update_file_template(20191101)
