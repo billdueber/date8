@@ -2,6 +2,7 @@
 require 'date'
 require 'delegate'
 require 'pathname'
+require 'zlib'
 
 module Date8
   class Error < StandardError; end
@@ -54,6 +55,10 @@ module Date8
 
     def daily_after(date_ish)
       daily_since(date_ish)[1..-1]
+    end
+
+    def in_dir(dir)
+      DatedFilesInDirectory.new(self.template, dir)
     end
 
 
@@ -165,6 +170,15 @@ module Date8
       self.new(dft, dft.filename_for(date_ish))
     end
 
+    def open
+      raise "File #{@path.to_s} doesn't exist" unless @path.exist?
+      begin
+        Zlib::GzipReader.open(@path)
+      rescue Zlib::GzipFile::Error
+        File.open(@path)
+      end
+    end
+
     def to_s
       @path.to_s
     end
@@ -172,10 +186,16 @@ module Date8
     def inspect
       "#<#{self.class.to_s}:#{@path} template=#{@dft.template}:#{object_id}>"
     end
+
+    def pretty_inspect
+      "#<#{self.class.to_s}: #{@path}\n  @template=#{@dft.template}\n  @embedded_date=#{@embedded_date.to_s}\n #{object_id}>"
+    end
+
   end
 
 
   class DatedFilesInDirectory < DatedFileTemplate
+    include Enumerable
     attr_reader :dir
 
     alias_method :path, :dir
@@ -185,20 +205,16 @@ module Date8
       @dir = Pathname.new(dir)
       @files = @dir.children.
         select(&:file?).
-        select(&:readable?).
         select{|x| self.match?(x.basename.to_s)}.
-        sort{|a,b| self.datetime_from_filename(a) <=> self.datetime_from_filename(b)}
+        sort{|a,b| self.datetime_from_filename(a) <=> self.datetime_from_filename(b)}.
+        map{|p| DatedFile.new(self, p.to_s)}
+
     end
 
-    def oldest
-      @files.last
+    def each
+      return enum_for(:each) unless block_given?
+      @files.each {|x| yield x }
     end
-
-    def earliest
-      @files.first
-    end
-
-
 
   end
 end
