@@ -1,5 +1,7 @@
 #require "date8/version"
 require 'date'
+require 'delegate'
+require 'pathname'
 
 module Date8
   class Error < StandardError; end
@@ -18,20 +20,23 @@ module Date8
       forgiving_dateify(date_ish).strftime(@strftime_template)
     end
 
-    alias_method :at, :filename_for
+    def at(date_ish)
+      DatedFile.from_date(self, date_ish)
+    end
+
 
     def now
-      filename_for DateTime.now
+      at DateTime.now
     end
 
     alias_method :today, :now
 
     def tomorrow
-      filename_for (DateTime.now + 1)
+      at (DateTime.now + 1)
     end
 
     def yesterday
-      filename_for (DateTime.now - 1)
+      at (DateTime.now - 1)
     end
 
     def daily_since(date_ish)
@@ -60,6 +65,14 @@ module Date8
 
     def match?(str)
       @matcher.match? str
+    end
+
+    def datetime_from_filename(str)
+      if m = @matcher.match(str)
+        forgiving_dateify(m[2..-1].join(''))
+      else
+        DateTime.new(0)
+      end
     end
 
 
@@ -118,7 +131,7 @@ module Date8
 
     def regexify_part(pt)
       if pt =~ /1+/
-        "\\d{#{pt.size}}"
+        "(\\d{#{pt.size}})"
       else
         pt
       end
@@ -131,8 +144,38 @@ module Date8
 
   end
 
+  class DatedFile < SimpleDelegator
 
-  class DatedFileDirectory < DatedFileTemplate
+    attr_reader :embedded_date, :dft
+
+    alias_method :template, :dft
+    def initialize(dft, filename)
+      @path = Pathname.new(filename)
+      self.__setobj__ @path
+      @dft = dft
+      @embedded_date = dft.datetime_from_filename(@path.basename.to_s)
+    end
+
+    def self.from_filename(dft, filename)
+      raise Error.new("String #{filename} does not match template '#{dft.template}'") unless dft.match? filename
+      self.new(dft, filename)
+    end
+
+    def self.from_date(dft, date_ish)
+      self.new(dft, dft.filename_for(date_ish))
+    end
+
+    def to_s
+      @path.to_s
+    end
+
+    def inspect
+      "#<#{self.class.to_s}:#{@path} template=#{@dft.template}:#{object_id}>"
+    end
+  end
+
+
+  class DatedFilesInDirectory < DatedFileTemplate
     attr_reader :dir
 
     alias_method :path, :dir
@@ -140,7 +183,21 @@ module Date8
     def initialize(template, dir='.')
       super(template)
       @dir = Pathname.new(dir)
+      @files = @dir.children.
+        select(&:file?).
+        select(&:readable?).
+        select{|x| self.match?(x.basename.to_s)}.
+        sort{|a,b| self.datetime_from_filename(a) <=> self.datetime_from_filename(b)}
     end
+
+    def oldest
+      @files.last
+    end
+
+    def earliest
+      @files.first
+    end
+
 
 
   end
