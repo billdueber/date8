@@ -57,7 +57,7 @@ module Date8
       daily_since(date_ish)[1..-1]
     end
 
-    def in_dir(dir)
+    def dir(dir)
       DatedFilesInDirectory.new(self.template, dir)
     end
 
@@ -179,6 +179,10 @@ module Date8
       end
     end
 
+    def ==(other)
+      self.basename.to_s == other.basename.to_s
+    end
+
     def to_s
       @path.to_s
     end
@@ -210,6 +214,20 @@ module Date8
         map{|p| DatedFile.new(self, p.to_s)}
 
     end
+
+    def include?(other)
+      cmp = if other.kind_of? Pathname
+              other
+            else
+              Pathname.new(other)
+            end
+      @files.include? cmp
+    end
+
+    def include_date?(date_ish)
+      @files.include? self.at(date_ish)
+    end
+
 
     def each
       return enum_for(:each) unless block_given?
