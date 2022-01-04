@@ -1,5 +1,11 @@
 # Date8 -- deal with dates of the form YYYYMMDD and filenames that embed them
 
+----
+
+**Deprecated and archived.**: See [date_named_file](https://github.com/billdueber/date_named_file) for the more generic approach.
+
+----
+
 My work involves an embarrassing amount of passing around dated files, 
 usually something like `catalog_update_20191103.txt.gz` or the like. This 
 library just allows me to be a little lazier when doing so.
